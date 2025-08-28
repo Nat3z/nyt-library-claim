@@ -128,4 +128,5 @@ await page.setCookie({
 await page.goto(fourthLink, {
   waitUntil: 'networkidle0'
 });
+console.log('Successfully claimed');
 process.exit(0);
