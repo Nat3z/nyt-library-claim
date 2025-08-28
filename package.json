@@ -1,0 +1,16 @@
+{
+  "name": "nyt-claim",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "puppeteer": "^24.17.0",
+    "zod": "^4.1.4"
+  }
+}
