@@ -1,5 +1,5 @@
 services:
-  nyt-claim:
+  nyt-claim-server:
     build:
       context: .
       dockerfile: Dockerfile
@@ -7,6 +7,25 @@ services:
     container_name: nyt-claim-app
     env_file:
       - .env
+    environment:
+      - CMD=server
+    volumes:
+      - nyt-claim-data:/app/cfg
+    ports:
+      - 3000:3000
+    network_mode: bridge
+    stdin_open: true
+    tty: true
+  nyt-claim-executor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nyt-claim
+    container_name: nyt-claim-executor
+    env_file:
+      - .env
+    environment:
+      - CMD=executor
     volumes:
       - nyt-claim-data:/app/cfg
     network_mode: bridge
