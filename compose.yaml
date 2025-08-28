@@ -5,12 +5,8 @@ services:
       dockerfile: Dockerfile
     image: nyt-claim
     container_name: nyt-claim-app
-    environment:
-      - LIBRARY_CARD=${LIBRARY_CARD}
-      - LIBRARY_PIN=${LIBRARY_PIN}
-      - NYT_SESSION=${NYT_SESSION}
-      - PI_MODE=true
-      - CLAIM_LINK=${CLAIM_LINK}
+    env_file:
+      - .env
     network_mode: bridge
     stdin_open: true
     tty: true
