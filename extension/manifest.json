@@ -1,0 +1,18 @@
+{
+  "name": "NYT Claim Assist",
+  "version": "1.0",
+  "manifest_version": 3,
+  "permissions": [
+    "cookies",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "web/index.html"
+  },
+  "host_permissions": [
+    "https://*.nytimes.com/*"
+  ],
+  "background": {
+    "service_worker": "main.js"
+  }
+}
