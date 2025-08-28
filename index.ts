@@ -1,5 +1,5 @@
 import { env } from "bun";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import z from "zod";
 import puppeteer from "puppeteer";
 
@@ -9,11 +9,12 @@ const schema = z.object({
   PI_MODE: z.enum(['true', 'false']).default('false'),
   CLAIM_LINK: z.string(),
   TOKEN: z.string().optional(),
-  USE_ENV: z.enum(['true', 'false']).default('false')
+  USE_ENV: z.enum(['true', 'false']).default('false'),
+  NTFY_TOPIC: z.string().optional()
 });
 
 
-const { LIBRARY_CARD, LIBRARY_PIN, PI_MODE, CLAIM_LINK, TOKEN, USE_ENV } = schema.parse(env);
+const { LIBRARY_CARD, LIBRARY_PIN, PI_MODE, CLAIM_LINK, TOKEN, USE_ENV, NTFY_TOPIC } = schema.parse(env);
 
 // make the cfg/ directory if it doesn't exist
 if (!existsSync('cfg')) {
@@ -30,7 +31,6 @@ if (USE_ENV === 'true') {
 if (!token) {
   throw new Error('No token found');
 }
-
 
 const basicHeaders = {
   'Accept-Encoding': 'gzip, deflate, br',
@@ -62,74 +62,131 @@ async function fetchWithRedirect(url: string, options: RequestInit = {}): Promis
   return { response, location };
 }
 
-// Initial login request
-const { response: loginResponse, location: oclcLink } = await fetchWithRedirect(CLAIM_LINK, {
-  method: 'POST',
-  headers: basicHeaders,
-  body: new URLSearchParams({
-    user: LIBRARY_CARD,
-    pass: LIBRARY_PIN,
-    url: 'https://ezmyaccount.nytimes.com/corpgrouppass/redir'
-  })
-});
+async function executeWithTimeout<T>(fn: () => Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
 
-const cookieHeader = loginResponse.headers.get('Set-Cookie');
-if (!cookieHeader) {
-  throw new Error('No cookies found in login response');
+    fn().then(
+      (result) => {
+        clearTimeout(timer);
+        resolve(result);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 }
-console.log(cookieHeader);
-const cookiesHeaders = parseCookies(cookieHeader);
 
-// --- OCLC ---
+async function main() {
+  let browser: any = null;
+  
+  try {
+    // Initial login request
+    const { response: loginResponse, location: oclcLink } = await fetchWithRedirect(CLAIM_LINK, {
+      method: 'POST',
+      headers: basicHeaders,
+      body: new URLSearchParams({
+        user: LIBRARY_CARD,
+        pass: LIBRARY_PIN,
+        url: 'https://ezmyaccount.nytimes.com/corpgrouppass/redir'
+      })
+    });
 
-const { location: secondRedirectLink } = await fetchWithRedirect(oclcLink, {
-  headers: {
-    ...basicHeaders,
-    Cookie: cookiesHeaders
+    const cookieHeader = loginResponse.headers.get('Set-Cookie');
+    if (!cookieHeader) {
+      throw new Error('No cookies found in login response');
+    }
+    console.log(cookieHeader);
+    const cookiesHeaders = parseCookies(cookieHeader);
+
+    // --- OCLC ---
+
+    const { location: secondRedirectLink } = await fetchWithRedirect(oclcLink, {
+      headers: {
+        ...basicHeaders,
+        Cookie: cookiesHeaders
+      }
+    });
+
+    const { location: thirdLink } = await fetchWithRedirect(secondRedirectLink, {
+      headers: {
+        ...basicHeaders,
+        Cookie: cookiesHeaders
+      }
+    });
+
+    // --- NYT ---
+
+    const { location: fourthLink } = await fetchWithRedirect(thirdLink, {
+      headers: {
+        ...basicHeaders,
+        Cookie: cookiesHeaders
+      }
+    });
+
+    browser = await puppeteer.launch({
+      headless: true,
+      ...(PI_MODE === 'true' ? {
+        executablePath: '/usr/bin/chromium'
+      } : {}),
+      args: ['--no-sandbox', '--disable-gpu']
+    });
+    const page = await browser.newPage();
+    console.log('Page created');
+
+    await page.setCookie({
+      name: 'NYT-S',
+      value: token,
+      domain: '.nytimes.com',
+      path: '/',
+      expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // expires in 30 days, in seconds
+      httpOnly: true,
+      secure: true,
+      sameSite: 'None'
+    });
+
+    await page.goto(fourthLink);
+    console.log('Page navigated');
+    await new Promise(resolve => setTimeout(resolve, 10000));
+
+    await page.screenshot({ path: 'cfg/claimed.png' });
+    console.log('Screenshot taken');
+    console.log('Successfully claimed');
+
+    if (NTFY_TOPIC) {
+      fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+        method: 'POST',
+        body: 'Successfully claimed NYT',
+      });
+    }
+
+    return 'success';
+  } finally {
+    // Always close browser if it was opened
+    if (browser) {
+      await browser.close();
+      console.log('Browser closed');
+    }
   }
-});
+}
 
-const { location: thirdLink } = await fetchWithRedirect(secondRedirectLink, {
-  headers: {
-    ...basicHeaders,
-    Cookie: cookiesHeaders
+try {
+  await executeWithTimeout(main, 20000);
+  process.exit(0);
+} catch (error) {
+  console.error('Execution failed:', error instanceof Error ? error.message : error);
+  if (NTFY_TOPIC) {
+    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+      method: 'POST',
+      body: 'Execution failed when claiming NYT',
+    });
   }
-});
 
-// --- NYT ---
-
-const { location: fourthLink } = await fetchWithRedirect(thirdLink, {
-  headers: {
-    ...basicHeaders,
-    Cookie: cookiesHeaders
-  }
-});
-
-const browser = await puppeteer.launch({
-  headless: true,
-  ...(PI_MODE === 'true' ? {
-    executablePath: '/usr/bin/chromium'
-  } : {}),
-  args: ['--no-sandbox', '--disable-gpu']
-});
-const page = await browser.newPage();
-
-await page.setCookie({
-  name: 'NYT-S',
-  value: token,
-  domain: '.nytimes.com',
-  path: '/',
-  expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // expires in 30 days, in seconds
-  httpOnly: true,
-  secure: true,
-  sameSite: 'None'
-});
-
-await page.goto(fourthLink);
-
-await new Promise(resolve => setTimeout(resolve, 10000));
-
-await page.screenshot({ path: 'screenshot.png' });
-
-console.log('Successfully claimed');
-process.exit(0);
+  // write to cfg/error.txt
+  writeFileSync('cfg/error.txt', (error as Error)?.message ?? String(error));
+  process.exit(1);
+}
