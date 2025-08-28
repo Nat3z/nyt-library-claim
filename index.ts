@@ -87,7 +87,7 @@ const { location: fourthLink } = await fetchWithRedirect(thirdLink, {
 });
 
 const browser = await puppeteer.launch({
-  headless: false,
+  headless: true,
   ...(PI_MODE === 'true' ? {
     executablePath: '/usr/bin/chromium-browser'
   } : {}),
