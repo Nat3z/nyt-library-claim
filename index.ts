@@ -125,8 +125,11 @@ await page.setCookie({
   sameSite: 'None'
 });
 
-await page.goto(fourthLink, {
-  waitUntil: 'networkidle0'
-});
+await page.goto(fourthLink);
+
+await new Promise(resolve => setTimeout(resolve, 10000));
+
+await page.screenshot({ path: 'screenshot.png' });
+
 console.log('Successfully claimed');
 process.exit(0);
