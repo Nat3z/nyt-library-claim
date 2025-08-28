@@ -5,4 +5,4 @@ COPY . .
 RUN apk update && apk add chromium
 RUN bun install --frozen-lockfile
 
-CMD ["bun", "index.ts"]
+CMD ["bun", "cmd.ts"]

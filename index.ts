@@ -1,17 +1,31 @@
 import { env } from "bun";
+import { existsSync, mkdirSync } from "fs";
 import z from "zod";
 import puppeteer from "puppeteer";
 
 const schema = z.object({
   LIBRARY_CARD: z.string().min(14).max(14),
   LIBRARY_PIN: z.string(),
-  NYT_SESSION: z.string(),
   PI_MODE: z.enum(['true', 'false']).default('false'),
   CLAIM_LINK: z.string()
 });
 
 
-const { LIBRARY_CARD, LIBRARY_PIN, NYT_SESSION, PI_MODE, CLAIM_LINK } = schema.parse(env);
+const { LIBRARY_CARD, LIBRARY_PIN, PI_MODE, CLAIM_LINK } = schema.parse(env);
+
+// make the cfg/ directory if it doesn't exist
+if (!existsSync('cfg')) {
+  mkdirSync('cfg');
+}
+
+// make the cfg/token.txt file if it doesn't exist
+if (!await Bun.file('cfg/token.txt').exists()) {
+  await Bun.write('cfg/token.txt', '');
+}
+const token = await Bun.file('cfg/token.txt').text();
+if (!token) {
+  throw new Error('No token found');
+}
 
 const basicHeaders = {
   'Accept-Encoding': 'gzip, deflate, br',
@@ -97,7 +111,7 @@ const page = await browser.newPage();
 
 await page.setCookie({
   name: 'NYT-S',
-  value: NYT_SESSION,
+  value: token,
   domain: '.nytimes.com',
   path: '/',
   expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // expires in 30 days, in seconds

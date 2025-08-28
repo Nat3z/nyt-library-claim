@@ -1,5 +1,6 @@
 {
   "name": "nyt-claim",
+  "version": "1.0.0",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -10,6 +11,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "effect": "^3.17.9",
     "puppeteer": "^24.17.0",
     "zod": "^4.1.4"
   },

@@ -7,6 +7,11 @@ services:
     container_name: nyt-claim-app
     env_file:
       - .env
+    volumes:
+      - nyt-claim-data:/app/cfg
     network_mode: bridge
     stdin_open: true
     tty: true
+
+volumes:
+  nyt-claim-data:
