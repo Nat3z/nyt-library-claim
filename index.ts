@@ -157,10 +157,17 @@ async function main() {
     console.log('Screenshot taken');
     console.log('Successfully claimed');
 
+    console.log('Topic:', NTFY_TOPIC);
     if (NTFY_TOPIC) {
-      fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+      console.log('Sending notification');
+      await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
         method: 'POST',
         body: 'Successfully claimed NYT',
+      }).then(async (res) => {
+        console.log(await res.text());
+        console.log('Notification sent');
+      }).catch((error) => {
+        console.error('Error sending notification:', error);
       });
     }
 
@@ -180,7 +187,7 @@ try {
 } catch (error) {
   console.error('Execution failed:', error instanceof Error ? error.message : error);
   if (NTFY_TOPIC) {
-    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+    await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
       method: 'POST',
       body: 'Execution failed when claiming NYT',
     });
