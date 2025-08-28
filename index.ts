@@ -7,11 +7,13 @@ const schema = z.object({
   LIBRARY_CARD: z.string().min(14).max(14),
   LIBRARY_PIN: z.string(),
   PI_MODE: z.enum(['true', 'false']).default('false'),
-  CLAIM_LINK: z.string()
+  CLAIM_LINK: z.string(),
+  TOKEN: z.string().optional(),
+  USE_ENV: z.enum(['true', 'false']).default('false')
 });
 
 
-const { LIBRARY_CARD, LIBRARY_PIN, PI_MODE, CLAIM_LINK } = schema.parse(env);
+const { LIBRARY_CARD, LIBRARY_PIN, PI_MODE, CLAIM_LINK, TOKEN, USE_ENV } = schema.parse(env);
 
 // make the cfg/ directory if it doesn't exist
 if (!existsSync('cfg')) {
@@ -19,13 +21,16 @@ if (!existsSync('cfg')) {
 }
 
 // make the cfg/token.txt file if it doesn't exist
-if (!await Bun.file('cfg/token.txt').exists()) {
-  await Bun.write('cfg/token.txt', '');
+let token = '';
+if (USE_ENV === 'true') {
+  token = TOKEN ?? '';
+} else {
+  token = await Bun.file('cfg/token.txt').text();
 }
-const token = await Bun.file('cfg/token.txt').text();
 if (!token) {
   throw new Error('No token found');
 }
+
 
 const basicHeaders = {
   'Accept-Encoding': 'gzip, deflate, br',
