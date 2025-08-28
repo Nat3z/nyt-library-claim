@@ -1,15 +1,7 @@
 # nyt-claim
 
-To install dependencies:
+Have a library card and organization that supports claiming a free NYT subscription?
 
-```bash
-bun install
-```
+This is a simple script that will get the links required to get the link for the subscription, and then claim it.
 
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.2.19. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## USE DOCKER AND FILL OUT THE ENV FILE TO USE
